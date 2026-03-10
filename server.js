@@ -3,6 +3,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execFile, exec } = require('child_process');
+const util = require('util');
+
+const execAsync = util.promisify(exec);
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const args = process.argv.slice(2);
 const PORT = (() => {
@@ -23,6 +27,27 @@ function runCcusage(cmdArgs, cb) {
     if (err) return cb(err, null);
     try { cb(null, JSON.parse(stdout)); }
     catch (e) { cb(e, null); }
+  });
+}
+
+function serveStatic(res, relPath) {
+  const allowed = ['.html', '.css', '.js'];
+  const ext = path.extname(relPath);
+  if (!allowed.includes(ext)) { res.writeHead(403); return res.end('Forbidden'); }
+
+  const absPath = path.resolve(PUBLIC_DIR, relPath);
+  if (!absPath.startsWith(PUBLIC_DIR + path.sep) && absPath !== PUBLIC_DIR) {
+    res.writeHead(403); return res.end('Forbidden');
+  }
+
+  const contentTypes = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript' };
+  fs.readFile(absPath, (err, data) => {
+    if (err) { res.writeHead(404); return res.end('Not found'); }
+    res.writeHead(200, {
+      'Content-Type': contentTypes[ext],
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(data);
   });
 }
 
@@ -56,13 +81,12 @@ const server = http.createServer((req, res) => {
   const query = parseQuery(req.url);
 
   if (url === '/') {
-    const html = fs.readFileSync(path.join(__dirname, 'index.html'));
-    res.writeHead(200, {
-      'Content-Type': 'text/html',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-    });
-    return res.end(html);
+    return serveStatic(res, 'index.html');
+  }
+
+  if (url.startsWith('/static/')) {
+    const relPath = url.slice('/static/'.length);
+    return serveStatic(res, relPath);
   }
 
   if (url.startsWith('/api/')) {

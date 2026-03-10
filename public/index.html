@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Usage</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">claude<span>stats</span></div>
+
+  <div class="presets">
+    <button class="preset" onclick="setPreset('today')">Today</button>
+    <button class="preset" onclick="setPreset('yesterday')">Yesterday</button>
+    <button class="preset" onclick="setPreset('7d')">Last 7 days</button>
+    <button class="preset" onclick="setPreset('30d')">Last 30 days</button>
+    <button class="preset" onclick="setPreset('month')">This month</button>
+    <button class="preset active" onclick="setPreset('all')">All time</button>
+  </div>
+
+  <div class="date-range">
+    <label>From</label>
+    <input type="date" id="since" onchange="onDateChange()">
+    <label>To</label>
+    <input type="date" id="until" onchange="onDateChange()">
+  </div>
+
+  <div class="period-pill" id="period-pill">Showing <strong>all time</strong></div>
+</header>
+
+<div class="disclaimer-banner">
+  <span class="disclaimer-icon">ℹ</span>
+  <span>All cost figures are <strong>estimates</strong> calculated from token counts × Anthropic list prices. They are not your actual invoice.
+  For billing, check <strong>console.anthropic.com</strong>. &nbsp;<button class="disclaimer-banner" onclick="switchTab('about')" style="display:inline;padding:0;border:none;background:none;color:var(--blue);cursor:pointer;font-size:12px;text-decoration:underline;text-underline-offset:2px">Learn more</button></span>
+</div>
+
+<div class="layout">
+  <nav>
+    <button class="nav-item active" onclick="switchTab('overview')">
+      <span class="icon">◈</span> Overview
+    </button>
+    <button class="nav-item" onclick="switchTab('daily')">
+      <span class="icon">◫</span> Daily
+    </button>
+    <button class="nav-item" onclick="switchTab('sessions')">
+      <span class="icon">◧</span> Sessions
+    </button>
+    <button class="nav-item" onclick="switchTab('monthly')">
+      <span class="icon">◩</span> Monthly
+    </button>
+    <button class="nav-item" onclick="switchTab('budget')">
+      <span class="icon">◎</span> Budget
+    </button>
+    <button class="nav-item" onclick="switchTab('about')" style="margin-top:auto">
+      <span class="icon">?</span> About
+    </button>
+  </nav>
+
+  <div class="content">
+    <div id="error-box" class="error-box"></div>
+
+    <!-- Overview -->
+    <div id="tab-overview" class="tab-panel active">
+      <div class="section-head">
+        <h2>Overview</h2>
+        <span class="section-meta" id="overview-meta"></span>
+      </div>
+
+      <div class="cards" id="summary-cards">
+        <div class="loading"><div class="spinner"></div> Loading…</div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-box-header">
+            <span class="chart-title">Spend per Day</span>
+            <span class="chart-hint" id="chart-hint"></span>
+          </div>
+          <canvas id="daily-chart" height="90"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-box-header">
+            <span class="chart-title">Spend by Model</span>
+          </div>
+          <canvas id="model-chart" height="90"></canvas>
+        </div>
+      </div>
+
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">Highest spend days</span>
+          <span class="table-meta" id="top-days-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Spend</th>
+              <th>Tokens</th>
+              <th>Models used</th>
+            </tr></thead>
+            <tbody id="top-days-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily -->
+    <div id="tab-daily" class="tab-panel">
+      <div class="section-head">
+        <h2>Daily breakdown</h2>
+        <span class="section-meta" id="daily-meta"></span>
+      </div>
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">All days</span>
+          <span class="table-meta" id="daily-total-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Spend</th>
+              <th><span data-tip="Tokens you typed / sent">Input</span></th>
+              <th><span data-tip="Tokens Claude generated">Output</span></th>
+              <th><span data-tip="Tokens written to prompt cache (billed at higher rate)">Cache write</span></th>
+              <th><span data-tip="Tokens read from prompt cache (very cheap)">Cache read</span></th>
+              <th>Models</th>
+            </tr></thead>
+            <tbody id="daily-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions -->
+    <div id="tab-sessions" class="tab-panel">
+      <div class="section-head">
+        <h2>Sessions</h2>
+        <span class="section-meta" id="sessions-meta"></span>
+      </div>
+
+      <div class="notice info">
+        <span class="notice-icon">ℹ</span>
+        <span class="notice-text">
+          Each row is a project/session workspace. <strong>Costs shown are all-time totals</strong> — the date filter only controls which sessions appear based on last activity date.
+        </span>
+      </div>
+
+      <div class="search-row">
+        <input type="text" class="search-input" id="session-search" placeholder="Search by project or session ID…" oninput="filterSessions()">
+      </div>
+
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">Sessions</span>
+          <span class="table-meta" id="session-count-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Project / Session</th>
+              <th>Spend</th>
+              <th>Total tokens</th>
+              <th>Last active</th>
+              <th>Models used</th>
+            </tr></thead>
+            <tbody id="sessions-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly -->
+    <div id="tab-monthly" class="tab-panel">
+      <div class="section-head">
+        <h2>Monthly summary</h2>
+        <span class="section-meta" id="monthly-meta"></span>
+      </div>
+      <div id="monthly-grid" class="monthly-grid"></div>
+      <div class="chart-box">
+        <div class="chart-box-header">
+          <span class="chart-title">Monthly Spend</span>
+        </div>
+        <canvas id="monthly-chart" height="70"></canvas>
+      </div>
+    </div>
+
+    <!-- Budget -->
+    <div id="tab-budget" class="tab-panel">
+      <div class="section-head">
+        <h2>Budget</h2>
+        <span class="section-meta">Always shows current billing period — unaffected by date filter</span>
+      </div>
+
+      <!-- Hero: progress + settings -->
+      <div class="budget-hero">
+        <div class="budget-hero-top">
+          <div class="budget-hero-left">
+            <h3>Spent this period</h3>
+            <div>
+              <span class="budget-spent" id="b-spent">$0.00</span>
+              <span class="budget-of" id="b-of">of $200</span>
+            </div>
+            <div class="budget-status-row">
+              <span class="status-badge safe" id="b-status-badge"><span class="status-dot"></span> On track</span>
+              <span style="font-size:11px;color:var(--text3)" id="b-status-sub"></span>
+            </div>
+          </div>
+          <div class="budget-settings">
+            <label>Monthly budget</label>
+            <input type="number" class="budget-input" id="budget-amount" value="200" min="1" step="1" oninput="saveBudgetSettings(); renderBudget()">
+            <label>Resets on day</label>
+            <input type="number" class="reset-input" id="budget-reset-day" value="1" min="1" max="28" oninput="saveBudgetSettings(); renderBudget()">
+            <label style="color:var(--text3);font-size:11px">of each month</label>
+          </div>
+        </div>
+
+        <div class="budget-bar-wrap">
+          <div class="budget-bar-outer">
+            <div class="budget-bar-inner safe" id="b-bar" style="width:0%"></div>
+            <div class="budget-bar-proj" id="b-bar-proj" style="left:0%;width:0%"></div>
+          </div>
+          <div class="budget-bar-labels">
+            <span id="b-bar-left">$0 spent</span>
+            <span id="b-bar-proj-label" style="color:var(--red)"></span>
+            <span id="b-bar-right">$200 budget</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key metrics -->
+      <div class="budget-cards">
+        <div class="bcard">
+          <div class="bcard-label">Remaining</div>
+          <div class="bcard-value" id="b-remaining" style="color:var(--green)">—</div>
+          <div class="bcard-sub" id="b-remaining-sub"></div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Days left in period</div>
+          <div class="bcard-value" id="b-days-left">—</div>
+          <div class="bcard-sub" id="b-days-sub"></div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Safe daily spend</div>
+          <div class="bcard-value" id="b-safe-daily" style="color:var(--blue)">—</div>
+          <div class="bcard-sub">to stay within budget</div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">7-day avg / day</div>
+          <div class="bcard-value" id="b-burn7">—</div>
+          <div class="bcard-sub" id="b-burn7-sub">calendar days</div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Projected total</div>
+          <div class="bcard-value" id="b-projected">—</div>
+          <div class="bcard-sub" id="b-projected-sub"></div>
+        </div>
+      </div>
+
+      <!-- Projection chart -->
+      <div class="chart-box" style="margin-bottom:20px">
+        <div class="chart-box-header">
+          <span class="chart-title">Cumulative spend this period</span>
+          <span class="chart-hint" id="b-chart-hint"></span>
+        </div>
+        <canvas id="budget-chart" height="80"></canvas>
+      </div>
+
+      <!-- Scenarios -->
+      <div class="scenarios" style="margin-bottom:20px">
+        <div class="scenarios-header">Projections for end of period</div>
+        <div class="scenario-row header-row">
+          <span>Scenario</span>
+          <span>Daily rate assumed</span>
+          <span>Projected total</span>
+          <span style="text-align:right">vs. budget</span>
+        </div>
+        <div id="b-scenarios"></div>
+      </div>
+
+      <!-- Advice box -->
+      <div class="tip-box" id="b-tip"></div>
+    </div>
+
+    <!-- About -->
+    <div id="tab-about" class="tab-panel">
+      <div class="section-head">
+        <h2>About this tool</h2>
+      </div>
+
+      <div class="about-hero">
+        <div style="font-size:36px">📊</div>
+        <div class="about-hero-text">
+          <h2>A usage guide for your team, not a billing tool</h2>
+          <p>This dashboard reads your local Claude Code conversation history and gives you a visual breakdown of how tokens and estimated costs are distributed across days, sessions, and models.</p>
+          <p>The goal is to help your team <strong>understand usage patterns</strong>, spot heavy usage days, and make informed decisions about which models to use — not to produce invoice figures.</p>
+        </div>
+      </div>
+
+      <div class="about-disclaimer-box">
+        <h3>⚠ Important: these are estimates, not your actual bill</h3>
+        <p>Every cost figure shown in this tool is <strong>calculated</strong> by multiplying your token counts by Anthropic's public list prices. Your actual invoice from Anthropic may differ because:</p>
+        <ul>
+          <li>Your local files store <code>costUSD: null</code> — no actual billed amount is ever written to disk by Claude Code</li>
+          <li>Anthropic may apply credits, volume discounts, or promotional rates to your account</li>
+          <li>List prices change over time; this tool applies today's prices to all historical usage</li>
+          <li>Cache pricing has multiple tiers (5-min vs 1-hour ephemeral) that may be approximated</li>
+        </ul>
+        <p style="margin-top:10px">For your real bill, always go to <strong>console.anthropic.com → Billing</strong>.</p>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-card">
+          <div class="about-card-icon">🔍</div>
+          <h3>What the numbers mean</h3>
+          <p>All <span class="tilde">~</span>$ figures are <em>estimated</em> costs derived from token usage. The tilde (~) prefix throughout the app is a reminder of this.</p>
+          <p>Token counts, on the other hand, are exact — they come directly from the API responses stored in your local <code>~/.claude/projects/</code> files.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">📅</div>
+          <h3>Sessions vs Daily</h3>
+          <p><strong>Sessions</strong> show all-time accumulated cost per project/session workspace. The date filter controls which sessions appear based on last activity, but costs always reflect the full history of that session.</p>
+          <p><strong>Daily/Monthly</strong> views show what happened within a specific time window — use these to understand your recent spend rate.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🤖</div>
+          <h3>Model tiers and cost</h3>
+          <p><strong>Opus</strong> is the most capable and most expensive. It's best for complex reasoning and architecture tasks.</p>
+          <p><strong>Sonnet</strong> is the everyday workhorse — strong capability at moderate cost. Good default for most coding tasks.</p>
+          <p><strong>Haiku</strong> is fast and cheap — great for routine edits, summaries, and high-volume operations.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">💡</div>
+          <h3>Tips for managing usage</h3>
+          <p>Cache read tokens (shown in the Daily tab) are very cheap — heavy cache use is a sign of efficient conversations.</p>
+          <p>If a single day spikes, check which model was active. Switching from Opus to Sonnet can cut costs by ~80% for equivalent tasks.</p>
+          <p>Use the <strong>Budget</strong> tab to track your current period and get a projected end-of-month total.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🔧</div>
+          <h3>How it works</h3>
+          <p>A tiny local Node.js server reads your <code>~/.claude/projects/**/*.jsonl</code> files via <code>npx ccusage</code> and exposes them as a JSON API.</p>
+          <p>No data leaves your machine. Nothing is sent to any external service. The UI is a single HTML file loaded from <code>localhost:3737</code>.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">📦</div>
+          <h3>Built on ccusage</h3>
+          <p>The data is powered by <a href="https://github.com/ryoppippi/ccusage" target="_blank">ccusage</a>, an open-source CLI tool that parses Claude Code's local conversation logs.</p>
+          <p>To start this dashboard: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">node server.js</code> then open <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">localhost:3737</code>.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🤖</div>
+          <h3>AI-generated</h3>
+          <p>This tool was built entirely with <a href="https://claude.ai/code" target="_blank">Claude Code</a> through a conversation with Claude. The code was reviewed by a human but not manually written.</p>
+          <p>We believe in being transparent about AI-generated software. If you find issues or want to contribute, the source is open.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

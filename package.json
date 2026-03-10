@@ -1,6 +1,6 @@
 {
   "name": "claudepeek",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Local dashboard for visualising Claude Code token usage and estimated costs. Built with Claude Code (AI-generated).",
   "keywords": [
     "claude",
@@ -18,7 +18,7 @@
   },
   "files": [
     "server.js",
-    "index.html",
+    "public/",
     "README.md"
   ],
   "engines": {
