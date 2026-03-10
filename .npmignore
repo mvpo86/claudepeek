@@ -1,0 +1,5 @@
+start.command
+stop.command
+start.bat
+stop.bat
+.server.pid

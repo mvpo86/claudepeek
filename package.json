@@ -1,0 +1,35 @@
+{
+  "name": "claudepeek",
+  "version": "1.0.0",
+  "description": "Local dashboard for visualising Claude Code token usage and estimated costs. Built with Claude Code (AI-generated).",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "token-usage",
+    "ccusage",
+    "dashboard"
+  ],
+  "license": "MIT",
+  "author": "Martin Penabad",
+  "homepage": "https://github.com/martinpenabad/claudepeek",
+  "bin": {
+    "claudepeek": "server.js"
+  },
+  "files": [
+    "server.js",
+    "index.html",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "ccusage": "*"
+  },
+  "peerDependenciesMeta": {
+    "ccusage": {
+      "optional": true
+    }
+  }
+}

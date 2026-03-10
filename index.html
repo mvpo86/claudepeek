@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Usage</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0f18;
+  --surface: #161928;
+  --surface2: #1e2235;
+  --surface3: #252a42;
+  --border: #2a2f4a;
+  --border2: #353c5e;
+  --accent: #7c6fff;
+  --accent-dim: rgba(124,111,255,0.15);
+  --green: #3ecf8e;
+  --green-dim: rgba(62,207,142,0.12);
+  --yellow: #f5a623;
+  --yellow-dim: rgba(245,166,35,0.12);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.12);
+  --blue: #60a5fa;
+  --text: #dde1f5;
+  --text2: #9399b8;
+  --text3: #5a6080;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ── Header ── */
+header {
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+
+.logo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logo span { color: var(--accent); }
+
+/* ── Quick presets ── */
+.presets {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.preset {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.preset:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.preset.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+/* ── Custom date range ── */
+.date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.date-range label { font-size: 12px; color: var(--text3); }
+.date-range input[type="date"] {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  outline: none;
+  width: 130px;
+}
+.date-range input[type="date"]:focus { border-color: var(--accent); }
+
+.btn {
+  padding: 5px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn:hover { opacity: 0.85; }
+
+/* ── Period pill ── */
+.period-pill {
+  margin-left: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.period-pill strong { color: var(--text); }
+
+/* ── Layout ── */
+.layout { display: flex; height: calc(100vh - 56px); }
+
+/* ── Sidebar nav ── */
+nav {
+  width: 180px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: all 0.12s;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); }
+.nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Section heading ── */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-head h2 { font-size: 15px; font-weight: 600; }
+.section-meta { font-size: 12px; color: var(--text2); }
+
+/* ── Cards ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-color, var(--accent));
+  opacity: 0.6;
+}
+.card-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+.card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--card-color, var(--text));
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.card-sub { font-size: 11px; color: var(--text3); }
+
+/* ── Charts ── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+
+.chart-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.chart-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.chart-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; }
+.chart-hint { font-size: 11px; color: var(--text3); }
+
+/* ── Table ── */
+.table-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.table-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; }
+.table-meta { font-size: 12px; color: var(--text2); }
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  color: var(--text3);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 9px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  font-weight: 500;
+}
+td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+.badge.opus   { color: #c084fc; border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.08); }
+.badge.sonnet { color: #60a5fa; border-color: rgba(96,165,250,0.3);  background: rgba(96,165,250,0.08); }
+.badge.haiku  { color: #34d399; border-color: rgba(52,211,153,0.3);  background: rgba(52,211,153,0.08); }
+
+/* ── Cost bar ── */
+.cost-cell { display: flex; align-items: center; gap: 10px; }
+.cost-amount { font-weight: 600; min-width: 52px; }
+.bar-track { flex: 1; height: 3px; background: var(--surface3); border-radius: 2px; min-width: 50px; max-width: 100px; }
+.bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+/* ── Notice box ── */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.notice.info { background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.25); color: var(--blue); }
+.notice.warn { background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.25); color: var(--yellow); }
+.notice-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.notice-text { color: var(--text2); }
+.notice-text strong { color: var(--text); }
+
+/* ── Search ── */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.search-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px 7px 32px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  outline: none;
+  width: 280px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a6080' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 10px center;
+}
+.search-input:focus { border-color: var(--accent); }
+
+/* ── Session name ── */
+.session-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.session-path { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+/* ── Monthly grid ── */
+.monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.monthly-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.monthly-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.monthly-cost { font-size: 22px; font-weight: 700; color: var(--green); }
+.monthly-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.monthly-row:last-child { border-bottom: none; }
+.monthly-row .key { color: var(--text3); }
+.monthly-row .val { color: var(--text); font-weight: 500; }
+
+/* ── Loading / error ── */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px; color: var(--text3); gap: 10px; font-size: 13px;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-box {
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  color: var(--red);
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+}
+
+/* ── Token tooltip ── */
+[data-tip] { position: relative; cursor: help; border-bottom: 1px dashed var(--border2); }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* ── Highlight today ── */
+.today-row td { background: rgba(124,111,255,0.04); }
+
+/* ── Disclaimer banner ── */
+.disclaimer-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  background: rgba(96,165,250,0.06);
+  border-bottom: 1px solid rgba(96,165,250,0.15);
+  font-size: 12px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.disclaimer-banner strong { color: var(--text2); }
+.disclaimer-banner a {
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none; border: none; font-size: 12px; padding: 0;
+}
+.disclaimer-icon { font-size: 13px; flex-shrink: 0; }
+
+/* ── About page ── */
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.about-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.about-card-icon { font-size: 24px; margin-bottom: 12px; }
+.about-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.about-card p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.about-card p + p { margin-top: 8px; }
+.about-card a { color: var(--blue); text-decoration: none; }
+.about-card a:hover { text-decoration: underline; }
+
+.about-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.about-hero-text h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.about-hero-text p { font-size: 13px; color: var(--text2); line-height: 1.7; max-width: 620px; }
+.about-hero-text p + p { margin-top: 8px; }
+.about-disclaimer-box {
+  background: rgba(245,166,35,0.08);
+  border: 1px solid rgba(245,166,35,0.25);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.about-disclaimer-box h3 { font-size: 13px; font-weight: 600; color: var(--yellow); margin-bottom: 8px; }
+.about-disclaimer-box p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.about-disclaimer-box p + p { margin-top: 6px; }
+.about-disclaimer-box ul { padding-left: 18px; margin-top: 8px; }
+.about-disclaimer-box li { font-size: 13px; color: var(--text2); line-height: 1.7; }
+
+.tilde { color: var(--text3); font-size: 0.85em; font-weight: 400; margin-right: 1px; }
+
+/* ── Budget tab ── */
+.budget-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.budget-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.budget-hero-left h3 { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+.budget-spent { font-size: 42px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+.budget-of { font-size: 16px; color: var(--text3); font-weight: 400; margin-left: 4px; }
+.budget-status-row { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.status-badge.safe   { background: var(--green-dim);  color: var(--green); border: 1px solid rgba(62,207,142,0.3); }
+.status-badge.warn   { background: var(--yellow-dim); color: var(--yellow);border: 1px solid rgba(245,166,35,0.3); }
+.status-badge.danger { background: var(--red-dim);    color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.budget-settings {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.budget-settings label { font-size: 12px; color: var(--text3); }
+.budget-input {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 10px 6px 22px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; outline: none; width: 110px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%235a6080' stroke-width='2.5'%3E%3Cpath d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 8px center;
+}
+.budget-input:focus { border-color: var(--accent); }
+.reset-input {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm);
+  font-size: 13px; outline: none; width: 70px;
+}
+.reset-input:focus { border-color: var(--accent); }
+
+/* progress bar */
+.budget-bar-wrap { margin-bottom: 8px; }
+.budget-bar-outer {
+  width: 100%; height: 12px; background: var(--surface2);
+  border-radius: 8px; overflow: hidden; position: relative;
+}
+.budget-bar-inner {
+  height: 100%; border-radius: 8px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+}
+.budget-bar-inner.safe   { background: linear-gradient(90deg, #3ecf8e, #2dd4a0); }
+.budget-bar-inner.warn   { background: linear-gradient(90deg, #f5a623, #fbbf24); }
+.budget-bar-inner.danger { background: linear-gradient(90deg, #f87171, #ef4444); }
+.budget-bar-proj {
+  position: absolute; top: 0; height: 100%;
+  background: rgba(248,113,113,0.25);
+  border-right: 2px dashed var(--red);
+  border-radius: 0 8px 8px 0;
+  transition: all 0.6s;
+}
+.budget-bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text3); margin-top: 4px;
+}
+
+/* budget cards row */
+.budget-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.bcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.bcard-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.bcard-value { font-size: 20px; font-weight: 700; }
+.bcard-sub { font-size: 11px; color: var(--text3); margin-top: 4px; line-height: 1.4; }
+
+/* scenarios */
+.scenarios {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 20px;
+}
+.scenarios-header {
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.scenario-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  align-items: center;
+  gap: 12px;
+}
+.scenario-row:last-child { border-bottom: none; }
+.scenario-row.header-row { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 18px; }
+.scenario-name { font-weight: 500; }
+.scenario-desc { font-size: 11px; color: var(--text3); }
+.scenario-pct { text-align: right; font-weight: 600; font-size: 12px; }
+
+.tip-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px; font-size: 13px;
+  line-height: 1.6; color: var(--text2);
+}
+.tip-box strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">claude<span>stats</span></div>
+
+  <div class="presets">
+    <button class="preset" onclick="setPreset('today')">Today</button>
+    <button class="preset" onclick="setPreset('yesterday')">Yesterday</button>
+    <button class="preset" onclick="setPreset('7d')">Last 7 days</button>
+    <button class="preset" onclick="setPreset('30d')">Last 30 days</button>
+    <button class="preset" onclick="setPreset('month')">This month</button>
+    <button class="preset active" onclick="setPreset('all')">All time</button>
+  </div>
+
+  <div class="date-range">
+    <label>From</label>
+    <input type="date" id="since" onchange="onDateChange()">
+    <label>To</label>
+    <input type="date" id="until" onchange="onDateChange()">
+  </div>
+
+  <div class="period-pill" id="period-pill">Showing <strong>all time</strong></div>
+</header>
+
+<div class="disclaimer-banner">
+  <span class="disclaimer-icon">ℹ</span>
+  <span>All cost figures are <strong>estimates</strong> calculated from token counts × Anthropic list prices. They are not your actual invoice.
+  For billing, check <strong>console.anthropic.com</strong>. &nbsp;<button class="disclaimer-banner" onclick="switchTab('about')" style="display:inline;padding:0;border:none;background:none;color:var(--blue);cursor:pointer;font-size:12px;text-decoration:underline;text-underline-offset:2px">Learn more</button></span>
+</div>
+
+<div class="layout">
+  <nav>
+    <button class="nav-item active" onclick="switchTab('overview')">
+      <span class="icon">◈</span> Overview
+    </button>
+    <button class="nav-item" onclick="switchTab('daily')">
+      <span class="icon">◫</span> Daily
+    </button>
+    <button class="nav-item" onclick="switchTab('sessions')">
+      <span class="icon">◧</span> Sessions
+    </button>
+    <button class="nav-item" onclick="switchTab('monthly')">
+      <span class="icon">◩</span> Monthly
+    </button>
+    <button class="nav-item" onclick="switchTab('budget')">
+      <span class="icon">◎</span> Budget
+    </button>
+    <button class="nav-item" onclick="switchTab('about')" style="margin-top:auto">
+      <span class="icon">?</span> About
+    </button>
+  </nav>
+
+  <div class="content">
+    <div id="error-box" class="error-box"></div>
+
+    <!-- Overview -->
+    <div id="tab-overview" class="tab-panel active">
+      <div class="section-head">
+        <h2>Overview</h2>
+        <span class="section-meta" id="overview-meta"></span>
+      </div>
+
+      <div class="cards" id="summary-cards">
+        <div class="loading"><div class="spinner"></div> Loading…</div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-box-header">
+            <span class="chart-title">Spend per Day</span>
+            <span class="chart-hint" id="chart-hint"></span>
+          </div>
+          <canvas id="daily-chart" height="90"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-box-header">
+            <span class="chart-title">Spend by Model</span>
+          </div>
+          <canvas id="model-chart" height="90"></canvas>
+        </div>
+      </div>
+
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">Highest spend days</span>
+          <span class="table-meta" id="top-days-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Spend</th>
+              <th>Tokens</th>
+              <th>Models used</th>
+            </tr></thead>
+            <tbody id="top-days-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily -->
+    <div id="tab-daily" class="tab-panel">
+      <div class="section-head">
+        <h2>Daily breakdown</h2>
+        <span class="section-meta" id="daily-meta"></span>
+      </div>
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">All days</span>
+          <span class="table-meta" id="daily-total-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Date</th>
+              <th>Spend</th>
+              <th><span data-tip="Tokens you typed / sent">Input</span></th>
+              <th><span data-tip="Tokens Claude generated">Output</span></th>
+              <th><span data-tip="Tokens written to prompt cache (billed at higher rate)">Cache write</span></th>
+              <th><span data-tip="Tokens read from prompt cache (very cheap)">Cache read</span></th>
+              <th>Models</th>
+            </tr></thead>
+            <tbody id="daily-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions -->
+    <div id="tab-sessions" class="tab-panel">
+      <div class="section-head">
+        <h2>Sessions</h2>
+        <span class="section-meta" id="sessions-meta"></span>
+      </div>
+
+      <div class="notice warn">
+        <span class="notice-icon">⚠</span>
+        <span class="notice-text">
+          <strong>These are all-time lifetime totals per project/session</strong> — not filtered by the date range above.
+          Each session accumulates cost across every conversation you've ever had in that folder.
+          To see what you spent in a specific period, use the <strong>Daily</strong> or <strong>Monthly</strong> tabs.
+        </span>
+      </div>
+
+      <div class="search-row">
+        <input type="text" class="search-input" id="session-search" placeholder="Search by project name…" oninput="filterSessions()">
+      </div>
+
+      <div class="table-box">
+        <div class="table-header">
+          <span class="table-title">Projects (all time)</span>
+          <span class="table-meta" id="session-count-meta"></span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Project</th>
+              <th>All-time spend</th>
+              <th>Total tokens</th>
+              <th>Last active</th>
+              <th>Models ever used</th>
+            </tr></thead>
+            <tbody id="sessions-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly -->
+    <div id="tab-monthly" class="tab-panel">
+      <div class="section-head">
+        <h2>Monthly summary</h2>
+        <span class="section-meta" id="monthly-meta"></span>
+      </div>
+      <div id="monthly-grid" class="monthly-grid"></div>
+      <div class="chart-box">
+        <div class="chart-box-header">
+          <span class="chart-title">Monthly Spend</span>
+        </div>
+        <canvas id="monthly-chart" height="70"></canvas>
+      </div>
+    </div>
+
+    <!-- Budget -->
+    <div id="tab-budget" class="tab-panel">
+      <div class="section-head">
+        <h2>Budget</h2>
+        <span class="section-meta">Always shows current billing period — unaffected by date filter</span>
+      </div>
+
+      <!-- Hero: progress + settings -->
+      <div class="budget-hero">
+        <div class="budget-hero-top">
+          <div class="budget-hero-left">
+            <h3>Spent this period</h3>
+            <div>
+              <span class="budget-spent" id="b-spent">$0.00</span>
+              <span class="budget-of" id="b-of">of $200</span>
+            </div>
+            <div class="budget-status-row">
+              <span class="status-badge safe" id="b-status-badge"><span class="status-dot"></span> On track</span>
+              <span style="font-size:11px;color:var(--text3)" id="b-status-sub"></span>
+            </div>
+          </div>
+          <div class="budget-settings">
+            <label>Monthly budget</label>
+            <input type="number" class="budget-input" id="budget-amount" value="200" min="1" step="1" oninput="saveBudgetSettings(); renderBudget()">
+            <label>Resets on day</label>
+            <input type="number" class="reset-input" id="budget-reset-day" value="1" min="1" max="28" oninput="saveBudgetSettings(); renderBudget()">
+            <label style="color:var(--text3);font-size:11px">of each month</label>
+          </div>
+        </div>
+
+        <div class="budget-bar-wrap">
+          <div class="budget-bar-outer">
+            <div class="budget-bar-inner safe" id="b-bar" style="width:0%"></div>
+            <div class="budget-bar-proj" id="b-bar-proj" style="left:0%;width:0%"></div>
+          </div>
+          <div class="budget-bar-labels">
+            <span id="b-bar-left">$0 spent</span>
+            <span id="b-bar-proj-label" style="color:var(--red)"></span>
+            <span id="b-bar-right">$200 budget</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key metrics -->
+      <div class="budget-cards">
+        <div class="bcard">
+          <div class="bcard-label">Remaining</div>
+          <div class="bcard-value" id="b-remaining" style="color:var(--green)">—</div>
+          <div class="bcard-sub" id="b-remaining-sub"></div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Days left in period</div>
+          <div class="bcard-value" id="b-days-left">—</div>
+          <div class="bcard-sub" id="b-days-sub"></div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Safe daily spend</div>
+          <div class="bcard-value" id="b-safe-daily" style="color:var(--blue)">—</div>
+          <div class="bcard-sub">to stay within budget</div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">7-day avg / day</div>
+          <div class="bcard-value" id="b-burn7">—</div>
+          <div class="bcard-sub" id="b-burn7-sub">calendar days</div>
+        </div>
+        <div class="bcard">
+          <div class="bcard-label">Projected total</div>
+          <div class="bcard-value" id="b-projected">—</div>
+          <div class="bcard-sub" id="b-projected-sub"></div>
+        </div>
+      </div>
+
+      <!-- Projection chart -->
+      <div class="chart-box" style="margin-bottom:20px">
+        <div class="chart-box-header">
+          <span class="chart-title">Cumulative spend this period</span>
+          <span class="chart-hint" id="b-chart-hint"></span>
+        </div>
+        <canvas id="budget-chart" height="80"></canvas>
+      </div>
+
+      <!-- Scenarios -->
+      <div class="scenarios" style="margin-bottom:20px">
+        <div class="scenarios-header">Projections for end of period</div>
+        <div class="scenario-row header-row">
+          <span>Scenario</span>
+          <span>Daily rate assumed</span>
+          <span>Projected total</span>
+          <span style="text-align:right">vs. budget</span>
+        </div>
+        <div id="b-scenarios"></div>
+      </div>
+
+      <!-- Advice box -->
+      <div class="tip-box" id="b-tip"></div>
+    </div>
+
+    <!-- About -->
+    <div id="tab-about" class="tab-panel">
+      <div class="section-head">
+        <h2>About this tool</h2>
+      </div>
+
+      <div class="about-hero">
+        <div style="font-size:36px">📊</div>
+        <div class="about-hero-text">
+          <h2>A usage guide for your team, not a billing tool</h2>
+          <p>This dashboard reads your local Claude Code conversation history and gives you a visual breakdown of how tokens and estimated costs are distributed across days, sessions, and models.</p>
+          <p>The goal is to help your team <strong>understand usage patterns</strong>, spot heavy usage days, and make informed decisions about which models to use — not to produce invoice figures.</p>
+        </div>
+      </div>
+
+      <div class="about-disclaimer-box">
+        <h3>⚠ Important: these are estimates, not your actual bill</h3>
+        <p>Every cost figure shown in this tool is <strong>calculated</strong> by multiplying your token counts by Anthropic's public list prices. Your actual invoice from Anthropic may differ because:</p>
+        <ul>
+          <li>Your local files store <code>costUSD: null</code> — no actual billed amount is ever written to disk by Claude Code</li>
+          <li>Anthropic may apply credits, volume discounts, or promotional rates to your account</li>
+          <li>List prices change over time; this tool applies today's prices to all historical usage</li>
+          <li>Cache pricing has multiple tiers (5-min vs 1-hour ephemeral) that may be approximated</li>
+        </ul>
+        <p style="margin-top:10px">For your real bill, always go to <strong>console.anthropic.com → Billing</strong>.</p>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-card">
+          <div class="about-card-icon">🔍</div>
+          <h3>What the numbers mean</h3>
+          <p>All <span class="tilde">~</span>$ figures are <em>estimated</em> costs derived from token usage. The tilde (~) prefix throughout the app is a reminder of this.</p>
+          <p>Token counts, on the other hand, are exact — they come directly from the API responses stored in your local <code>~/.claude/projects/</code> files.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">📅</div>
+          <h3>Sessions vs Daily</h3>
+          <p><strong>Sessions</strong> show the all-time accumulated cost for each project folder, regardless of any date filter you set. A session is one working directory.</p>
+          <p><strong>Daily/Monthly</strong> views show what happened within a specific time window — use these to understand your recent spend rate.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🤖</div>
+          <h3>Model tiers and cost</h3>
+          <p><strong>Opus</strong> is the most capable and most expensive. It's best for complex reasoning and architecture tasks.</p>
+          <p><strong>Sonnet</strong> is the everyday workhorse — strong capability at moderate cost. Good default for most coding tasks.</p>
+          <p><strong>Haiku</strong> is fast and cheap — great for routine edits, summaries, and high-volume operations.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">💡</div>
+          <h3>Tips for managing usage</h3>
+          <p>Cache read tokens (shown in the Daily tab) are very cheap — heavy cache use is a sign of efficient conversations.</p>
+          <p>If a single day spikes, check which model was active. Switching from Opus to Sonnet can cut costs by ~80% for equivalent tasks.</p>
+          <p>Use the <strong>Budget</strong> tab to track your current period and get a projected end-of-month total.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🔧</div>
+          <h3>How it works</h3>
+          <p>A tiny local Node.js server reads your <code>~/.claude/projects/**/*.jsonl</code> files via <code>npx ccusage</code> and exposes them as a JSON API.</p>
+          <p>No data leaves your machine. Nothing is sent to any external service. The UI is a single HTML file loaded from <code>localhost:3737</code>.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">📦</div>
+          <h3>Built on ccusage</h3>
+          <p>The data is powered by <a href="https://github.com/ryoppippi/ccusage" target="_blank">ccusage</a>, an open-source CLI tool that parses Claude Code's local conversation logs.</p>
+          <p>To start this dashboard: <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">node server.js</code> then open <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;font-size:12px">localhost:3737</code>.</p>
+        </div>
+        <div class="about-card">
+          <div class="about-card-icon">🤖</div>
+          <h3>AI-generated</h3>
+          <p>This tool was built entirely with <a href="https://claude.ai/code" target="_blank">Claude Code</a> through a conversation with Claude. The code was reviewed by a human but not manually written.</p>
+          <p>We believe in being transparent about AI-generated software. If you find issues or want to contribute, the source is open.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<script>
+// ── Model coloring ──
+const MODEL_PALETTE = {
+  opus:   { bg: 'rgba(192,132,252,0.7)', border: '#c084fc', cls: 'opus' },
+  sonnet: { bg: 'rgba(96,165,250,0.7)',  border: '#60a5fa', cls: 'sonnet' },
+  haiku:  { bg: 'rgba(52,211,153,0.7)',  border: '#34d399', cls: 'haiku' },
+};
+const FALLBACK_COLORS = ['rgba(124,111,255,0.7)','rgba(245,166,35,0.7)','rgba(248,113,113,0.7)','rgba(96,165,250,0.7)'];
+
+function modelFamily(name) {
+  if (name.includes('opus'))   return 'opus';
+  if (name.includes('sonnet')) return 'sonnet';
+  if (name.includes('haiku'))  return 'haiku';
+  return null;
+}
+function modelColor(name, idx = 0) {
+  const f = modelFamily(name);
+  return f ? MODEL_PALETTE[f].bg : FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
+}
+function modelBorderColor(name, idx = 0) {
+  const f = modelFamily(name);
+  return f ? MODEL_PALETTE[f].border : FALLBACK_COLORS[idx % FALLBACK_COLORS.length].replace('0.7','1');
+}
+function modelBadge(name) {
+  const short = name.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'');
+  const cls   = modelFamily(name) || '';
+  return `<span class="badge ${cls}">${short}</span>`;
+}
+
+// ── Formatting ──
+function fmt(n)  { return '~$' + n.toFixed(2); }
+function fmtN(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function parseSessionPath(id) {
+  // e.g. -Users-martin-penabad-Documents-GitHub-fintech-acquiring
+  // strip leading -Users-USERNAME
+  const stripped = id.replace(/^-Users-[^-]+/, '') || '/';
+  const path = stripped.replace(/-/g, '/') || '/';
+  const parts = path.split('/').filter(Boolean);
+  const name = parts.length ? parts[parts.length - 1] : '~ (home)';
+  const fullPath = parts.length ? '~/' + parts.join('/') : '~';
+  return { name, fullPath };
+}
+
+function today()     { return new Date().toISOString().slice(0,10); }
+function daysAgo(n)  { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
+function monthStart(){ return new Date().toISOString().slice(0,7) + '-01'; }
+
+// ── State ──
+let dailyData = [], sessionData = [], monthlyData = [], allDailyData = [];
+let dailyChart, modelChart, monthlyChart, budgetChart;
+let allSessions = [];
+let activePreset = 'all';
+
+// ── Preset logic ──
+function setPreset(p) {
+  activePreset = p;
+  document.querySelectorAll('.preset').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('onclick').includes(`'${p}'`));
+  });
+
+  const since = document.getElementById('since');
+  const until = document.getElementById('until');
+
+  const map = {
+    today:     [today(), today()],
+    yesterday: [daysAgo(1), daysAgo(1)],
+    '7d':      [daysAgo(6), today()],
+    '30d':     [daysAgo(29), today()],
+    month:     [monthStart(), today()],
+    all:       ['', ''],
+  };
+  const [s, u] = map[p] || ['',''];
+  since.value = s;
+  until.value = u;
+  updatePeriodPill();
+  loadAll();
+}
+
+function onDateChange() {
+  // deactivate all presets when user manually edits dates
+  activePreset = 'custom';
+  document.querySelectorAll('.preset').forEach(el => el.classList.remove('active'));
+  updatePeriodPill();
+  loadAll();
+}
+
+function updatePeriodPill() {
+  const s = document.getElementById('since').value;
+  const u = document.getElementById('until').value;
+  const pill = document.getElementById('period-pill');
+  if (!s && !u) {
+    pill.innerHTML = 'Showing <strong>all time</strong>';
+  } else if (s === u && s) {
+    pill.innerHTML = `Showing <strong>${s}</strong>`;
+  } else {
+    pill.innerHTML = `<strong>${s || '…'}</strong> → <strong>${u || '…'}</strong>`;
+  }
+}
+
+function getFilters() {
+  const since = document.getElementById('since').value.replace(/-/g,'');
+  const until = document.getElementById('until').value.replace(/-/g,'');
+  const p = new URLSearchParams();
+  if (since) p.set('since', since);
+  if (until) p.set('until', until);
+  return p.toString() ? '?' + p.toString() : '';
+}
+
+function periodLabel() {
+  const s = document.getElementById('since').value;
+  const u = document.getElementById('until').value;
+  if (!s && !u) return 'All time';
+  if (s === u && s) return s;
+  return `${s || 'start'} → ${u || 'now'}`;
+}
+
+// ── Tab switching ──
+const TAB_NAMES = ['overview','daily','sessions','monthly','budget','about'];
+function switchTab(name) {
+  document.querySelectorAll('.nav-item').forEach((el, i) => {
+    el.classList.toggle('active', TAB_NAMES[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Fetch ──
+async function fetchJSON(endpoint) {
+  const res = await fetch('/api/' + endpoint + getFilters());
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 8000);
+}
+
+// ── Overview cards ──
+function renderCards(daily, sessions) {
+  const totalCost   = daily.reduce((s, d) => s + d.totalCost, 0);
+  const avgDaily    = daily.length ? totalCost / daily.length : 0;
+  const topDay      = [...daily].sort((a,b) => b.totalCost - a.totalCost)[0];
+  const totalTokens = daily.reduce((s, d) => s + d.totalTokens, 0);
+
+  const modelTotals = {};
+  daily.forEach(d => (d.modelBreakdowns||[]).forEach(mb => {
+    modelTotals[mb.modelName] = (modelTotals[mb.modelName]||0) + mb.cost;
+  }));
+  const topModel = Object.entries(modelTotals).sort((a,b) => b[1]-a[1])[0];
+
+  const label = periodLabel();
+  document.getElementById('overview-meta').textContent = label;
+
+  document.getElementById('summary-cards').innerHTML = `
+    <div class="card" style="--card-color:var(--green)">
+      <div class="card-label">Total spend</div>
+      <div class="card-value">${fmt(totalCost)}</div>
+      <div class="card-sub">${daily.length} active day${daily.length !== 1 ? 's' : ''} · ${label}</div>
+    </div>
+    <div class="card" style="--card-color:var(--yellow)">
+      <div class="card-label">Avg per active day</div>
+      <div class="card-value">${fmt(avgDaily)}</div>
+      <div class="card-sub">only counts days you used Claude</div>
+    </div>
+    <div class="card" style="--card-color:var(--red)">
+      <div class="card-label">Highest single day</div>
+      <div class="card-value">${topDay ? fmt(topDay.totalCost) : '—'}</div>
+      <div class="card-sub">${topDay ? topDay.date : 'no data'}</div>
+    </div>
+    <div class="card" style="--card-color:var(--accent)">
+      <div class="card-label">Top model by spend</div>
+      <div class="card-value" style="font-size:16px;padding-top:4px">${topModel ? topModel[0].replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'') : '—'}</div>
+      <div class="card-sub">${topModel ? fmt(topModel[1]) + ' of total' : ''}</div>
+    </div>
+    <div class="card" style="--card-color:var(--blue)">
+      <div class="card-label">Total tokens</div>
+      <div class="card-value">${fmtN(totalTokens)}</div>
+      <div class="card-sub">${sessions.length} project${sessions.length !== 1 ? 's' : ''} (all time)</div>
+    </div>
+  `;
+}
+
+// ── Daily chart (stacked by model) ──
+function renderDailyChart(daily) {
+  // collect all model names
+  const modelSet = new Set();
+  daily.forEach(d => (d.modelBreakdowns||[]).forEach(mb => modelSet.add(mb.modelName)));
+  const models = [...modelSet];
+
+  const labels = daily.map(d => d.date);
+  const datasets = models.map((m, i) => ({
+    label: m.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,''),
+    data: daily.map(d => {
+      const mb = (d.modelBreakdowns||[]).find(x => x.modelName === m);
+      return mb ? +mb.cost.toFixed(4) : 0;
+    }),
+    backgroundColor: modelColor(m, i),
+    borderColor: modelBorderColor(m, i),
+    borderWidth: 1,
+    borderRadius: models.length === 1 ? 4 : 0,
+    stack: 'stack',
+  }));
+
+  // hint
+  const todayStr = today();
+  const todayEntry = daily.find(d => d.date === todayStr);
+  document.getElementById('chart-hint').textContent = todayEntry ? `Today: ${fmt(todayEntry.totalCost)}` : '';
+
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('daily-chart'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index' },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#9399b8', font: { size: 11 }, padding: 14, boxWidth: 10 } },
+        tooltip: {
+          callbacks: {
+            footer: items => 'Total: $' + items.reduce((s,i) => s + i.raw, 0).toFixed(2)
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#5a6080', maxTicksLimit: 12, font: { size: 11 } }, grid: { color: '#181c2e' } },
+        y: { stacked: true, ticks: { color: '#5a6080', callback: v => '$'+v, font: { size: 11 } }, grid: { color: '#181c2e' } }
+      }
+    }
+  });
+}
+
+// ── Model doughnut ──
+function renderModelChart(daily) {
+  const modelTotals = {};
+  daily.forEach(d => (d.modelBreakdowns||[]).forEach(mb => {
+    modelTotals[mb.modelName] = (modelTotals[mb.modelName]||0) + mb.cost;
+  }));
+  const sorted = Object.entries(modelTotals).sort((a,b) => b[1]-a[1]);
+
+  if (modelChart) modelChart.destroy();
+  if (!sorted.length) return;
+
+  modelChart = new Chart(document.getElementById('model-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([m]) => m.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'')),
+      datasets: [{
+        data: sorted.map(([,c]) => +c.toFixed(4)),
+        backgroundColor: sorted.map(([m],i) => modelColor(m,i)),
+        borderColor: '#161928',
+        borderWidth: 3,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      cutout: '62%',
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#9399b8', font: { size: 11 }, padding: 14, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${fmt(ctx.raw)}` } }
+      }
+    }
+  });
+}
+
+// ── Top days ──
+function renderTopDays(daily) {
+  const top = [...daily].sort((a,b) => b.totalCost - a.totalCost).slice(0, 10);
+  const maxCost = top[0]?.totalCost || 1;
+  const todayStr = today();
+  document.getElementById('top-days-meta').textContent = `${top.length} of ${daily.length} days`;
+  document.getElementById('top-days-body').innerHTML = top.length ? top.map((d, i) => `
+    <tr${d.date === todayStr ? ' class="today-row"' : ''}>
+      <td style="color:var(--text3);width:32px">${i+1}</td>
+      <td>${d.date}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
+      <td>
+        <div class="cost-cell">
+          <span class="cost-amount" style="color:var(--green)">${fmt(d.totalCost)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(d.totalCost/maxCost*100).toFixed(1)}%"></div></div>
+        </div>
+      </td>
+      <td style="color:var(--text2)">${fmtN(d.totalTokens)}</td>
+      <td>${(d.modelsUsed||[]).map(m => modelBadge(m)).join(' ')}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="5" class="empty">No data for this period</td></tr>`;
+}
+
+// ── Daily table ──
+function renderDailyTable(daily) {
+  const total = daily.reduce((s,d) => s+d.totalCost, 0);
+  const sorted = [...daily].sort((a,b) => b.date.localeCompare(a.date));
+  const todayStr = today();
+  document.getElementById('daily-meta').textContent = periodLabel();
+  document.getElementById('daily-total-meta').textContent = `${sorted.length} days · Total: ${fmt(total)}`;
+  document.getElementById('daily-body').innerHTML = sorted.length ? sorted.map(d => `
+    <tr${d.date === todayStr ? ' class="today-row"' : ''}>
+      <td>${d.date}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
+      <td><span style="color:var(--green);font-weight:600">${fmt(d.totalCost)}</span></td>
+      <td style="color:var(--text2)">${fmtN(d.inputTokens)}</td>
+      <td style="color:var(--text2)">${fmtN(d.outputTokens)}</td>
+      <td style="color:var(--text2)">${fmtN(d.cacheCreationTokens)}</td>
+      <td style="color:var(--text2)">${fmtN(d.cacheReadTokens)}</td>
+      <td>${(d.modelsUsed||[]).map(m => modelBadge(m)).join(' ')}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="7" class="empty">No data for this period</td></tr>`;
+}
+
+// ── Sessions ──
+function renderSessions(sessions) {
+  allSessions = [...sessions].sort((a,b) => b.totalCost - a.totalCost);
+  filterSessions();
+}
+
+function filterSessions() {
+  const q = document.getElementById('session-search').value.toLowerCase();
+  const filtered = allSessions.filter(s => {
+    if (!q) return true;
+    const { name, fullPath } = parseSessionPath(s.sessionId);
+    return name.toLowerCase().includes(q) || fullPath.toLowerCase().includes(q) || s.sessionId.toLowerCase().includes(q);
+  });
+  const total = filtered.reduce((s,x) => s+x.totalCost, 0);
+  document.getElementById('sessions-meta').textContent = 'All-time per project';
+  document.getElementById('session-count-meta').textContent = `${filtered.length} of ${allSessions.length} projects · Total: ${fmt(total)}`;
+  const maxCost = allSessions[0]?.totalCost || 1;
+  document.getElementById('sessions-body').innerHTML = filtered.length ? filtered.map(s => {
+    const { name, fullPath } = parseSessionPath(s.sessionId);
+    return `
+    <tr>
+      <td>
+        <div class="session-name">${name}</div>
+        <div class="session-path">${fullPath}</div>
+      </td>
+      <td>
+        <div class="cost-cell">
+          <span class="cost-amount" style="color:var(--green)">${fmt(s.totalCost)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(s.totalCost/maxCost*100).toFixed(1)}%"></div></div>
+        </div>
+      </td>
+      <td style="color:var(--text2)">${fmtN(s.totalTokens)}</td>
+      <td style="color:var(--text2)">${s.lastActivity || '—'}</td>
+      <td>${(s.modelsUsed||[]).map(m => modelBadge(m)).join(' ')}</td>
+    </tr>
+  `}).join('') : `<tr><td colspan="5" class="empty">No sessions match your search</td></tr>`;
+}
+
+// ── Monthly ──
+function renderMonthly(monthly) {
+  const sorted = [...monthly].sort((a,b) => b.month.localeCompare(a.month));
+  document.getElementById('monthly-meta').textContent = `${sorted.length} months`;
+
+  document.getElementById('monthly-grid').innerHTML = sorted.map(m => {
+    const top = [...(m.modelBreakdowns||[])].sort((a,b)=>b.cost-a.cost)[0];
+    const topName = top ? top.modelName.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'') : '—';
+    return `
+    <div class="monthly-card">
+      <h4>
+        ${m.month}
+        <span class="monthly-cost">${fmt(m.totalCost)}</span>
+      </h4>
+      <div class="monthly-row"><span class="key">Top model</span><span class="val">${modelBadge(top?.modelName||'')}</span></div>
+      <div class="monthly-row"><span class="key">Total tokens</span><span class="val">${fmtN(m.totalTokens)}</span></div>
+      <div class="monthly-row"><span class="key">Input</span><span class="val">${fmtN(m.inputTokens)}</span></div>
+      <div class="monthly-row"><span class="key">Output</span><span class="val">${fmtN(m.outputTokens)}</span></div>
+      <div class="monthly-row"><span class="key">Cache write</span><span class="val">${fmtN(m.cacheCreationTokens)}</span></div>
+      <div class="monthly-row"><span class="key">Cache read</span><span class="val">${fmtN(m.cacheReadTokens)}</span></div>
+    </div>
+  `}).join('');
+
+  if (monthlyChart) monthlyChart.destroy();
+  monthlyChart = new Chart(document.getElementById('monthly-chart'), {
+    type: 'bar',
+    data: {
+      labels: monthly.map(m => m.month),
+      datasets: [{
+        label: 'Spend ($)',
+        data: monthly.map(m => +m.totalCost.toFixed(2)),
+        backgroundColor: 'rgba(62,207,142,0.6)',
+        borderColor: '#3ecf8e',
+        borderWidth: 1,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#5a6080', font: { size: 11 } }, grid: { color: '#181c2e' } },
+        y: { ticks: { color: '#5a6080', callback: v => '$'+v, font: { size: 11 } }, grid: { color: '#181c2e' } }
+      }
+    }
+  });
+}
+
+// ── Budget: localStorage persistence ──
+function loadBudgetSettings() {
+  const s = JSON.parse(localStorage.getItem('ccusage_budget') || '{}');
+  document.getElementById('budget-amount').value    = s.amount    ?? 200;
+  document.getElementById('budget-reset-day').value = s.resetDay  ?? 1;
+}
+
+function saveBudgetSettings() {
+  localStorage.setItem('ccusage_budget', JSON.stringify({
+    amount:   parseFloat(document.getElementById('budget-amount').value)   || 200,
+    resetDay: parseInt(document.getElementById('budget-reset-day').value)  || 1,
+  }));
+}
+
+// ── Budget: period boundaries ──
+function getBudgetPeriod(resetDay) {
+  const now = new Date();
+  const d = now.getDate();
+  let start, end;
+  if (d >= resetDay) {
+    start = new Date(now.getFullYear(), now.getMonth(), resetDay);
+    end   = new Date(now.getFullYear(), now.getMonth() + 1, resetDay - 1);
+  } else {
+    start = new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
+    end   = new Date(now.getFullYear(), now.getMonth(), resetDay - 1);
+  }
+  const todayD  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysTotal   = Math.round((end - start)   / 86400000) + 1;
+  const daysElapsed = Math.round((todayD - start) / 86400000) + 1;
+  const daysLeft    = Math.round((end - todayD)   / 86400000);
+  return {
+    start:  start.toISOString().slice(0,10),
+    end:    end.toISOString().slice(0,10),
+    daysTotal, daysElapsed, daysLeft,
+  };
+}
+
+// Return a date string for N calendar days ago
+function calDaysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0,10);
+}
+
+// ── Budget: main render ──
+function renderBudget() {
+  const budget   = parseFloat(document.getElementById('budget-amount').value)  || 200;
+  const resetDay = parseInt(document.getElementById('budget-reset-day').value) || 1;
+  const period   = getBudgetPeriod(resetDay);
+  const todayStr = today();
+
+  // Spend this period
+  const periodDays = allDailyData.filter(d => d.date >= period.start && d.date <= period.end);
+  const spent = periodDays.reduce((s, d) => s + d.totalCost, 0);
+
+  // Burn rates (last 7 / 14 / 30 calendar days)
+  function burnRate(calDays) {
+    const since = calDaysAgo(calDays - 1);
+    const sum = allDailyData
+      .filter(d => d.date >= since && d.date <= todayStr)
+      .reduce((s, d) => s + d.totalCost, 0);
+    return sum / calDays;
+  }
+  const burn7  = burnRate(7);
+  const burn14 = burnRate(14);
+  const burn30 = burnRate(30);
+
+  const remaining  = Math.max(0, budget - spent);
+  const daysLeft   = period.daysLeft;
+  const safeDaily  = daysLeft > 0 ? remaining / daysLeft : 0;
+
+  const projLow    = spent + (burn7 * 0.5)  * daysLeft;
+  const projMid    = spent + burn7           * daysLeft;
+  const projHigh   = spent + burn14          * daysLeft;
+  const projWorst  = spent + (burn7 * 1.5)  * daysLeft;
+
+  const pct        = Math.min(spent / budget, 1);
+  const projPct    = Math.min(projMid / budget, 1);
+  const overProj   = projMid > budget;
+
+  const status = spent >= budget ? 'danger' : projMid > budget * 0.9 ? 'warn' : 'safe';
+  const statusLabels = { safe: 'On track', warn: 'Watch out', danger: 'Over budget' };
+
+  // ── DOM updates ──
+  document.getElementById('b-spent').textContent        = fmt(spent);
+  document.getElementById('b-spent').style.color        = status === 'danger' ? 'var(--red)' : status === 'warn' ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('b-of').textContent           = `of ${fmt(budget)}`;
+  document.getElementById('b-remaining').textContent    = fmt(remaining);
+  document.getElementById('b-remaining').style.color    = remaining < budget * 0.15 ? 'var(--red)' : remaining < budget * 0.3 ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('b-remaining-sub').textContent= `${(pct * 100).toFixed(1)}% used`;
+  document.getElementById('b-days-left').textContent    = daysLeft >= 0 ? daysLeft : 0;
+  document.getElementById('b-days-sub').textContent     = `period ends ${period.end}`;
+  document.getElementById('b-safe-daily').textContent   = safeDaily > 0 ? fmt(safeDaily) : '—';
+  document.getElementById('b-safe-daily').style.color   = safeDaily > burn7 * 1.2 ? 'var(--green)' : safeDaily > 0 ? 'var(--blue)' : 'var(--red)';
+  document.getElementById('b-burn7').textContent        = fmt(burn7);
+  document.getElementById('b-burn7').style.color        = burn7 > safeDaily ? 'var(--red)' : 'var(--text)';
+  document.getElementById('b-burn7-sub').textContent    = burn7 > safeDaily
+    ? `${fmt(burn7 - safeDaily)}/day over safe limit`
+    : `${fmt(safeDaily - burn7)}/day under safe limit`;
+  document.getElementById('b-projected').textContent    = fmt(projMid);
+  document.getElementById('b-projected').style.color    = projMid > budget ? 'var(--red)' : projMid > budget * 0.9 ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('b-projected-sub').textContent= projMid > budget
+    ? `${fmt(projMid - budget)} over budget`
+    : `${fmt(budget - projMid)} under budget`;
+
+  // Status badge
+  const badge = document.getElementById('b-status-badge');
+  badge.className = `status-badge ${status}`;
+  badge.innerHTML = `<span class="status-dot"></span> ${statusLabels[status]}`;
+
+  const sub = document.getElementById('b-status-sub');
+  if (status === 'danger') {
+    sub.textContent = `You've exceeded your budget by ${fmt(spent - budget)}`;
+    sub.style.color = 'var(--red)';
+  } else if (status === 'warn') {
+    const daysUntilOut = burn7 > 0 ? remaining / burn7 : Infinity;
+    const outDate = new Date(); outDate.setDate(outDate.getDate() + Math.floor(daysUntilOut));
+    sub.textContent = `At current rate, budget runs out ~${outDate.toISOString().slice(0,10)}`;
+    sub.style.color = 'var(--yellow)';
+  } else {
+    sub.textContent = `${period.daysElapsed} of ${period.daysTotal} days elapsed`;
+    sub.style.color = 'var(--text3)';
+  }
+
+  // Progress bar
+  const bar = document.getElementById('b-bar');
+  bar.style.width     = (pct * 100).toFixed(1) + '%';
+  bar.className       = `budget-bar-inner ${status}`;
+  const projBar       = document.getElementById('b-bar-proj');
+  if (overProj && projPct > pct) {
+    projBar.style.left  = (pct * 100).toFixed(1) + '%';
+    projBar.style.width = ((projPct - pct) * 100).toFixed(1) + '%';
+    projBar.style.display = 'block';
+    document.getElementById('b-bar-proj-label').textContent = `Projected: ${fmt(projMid)}`;
+  } else {
+    projBar.style.display = 'none';
+    document.getElementById('b-bar-proj-label').textContent = '';
+  }
+  document.getElementById('b-bar-left').textContent  = `${fmt(spent)} spent`;
+  document.getElementById('b-bar-right').textContent = `${fmt(budget)} budget`;
+  document.getElementById('b-chart-hint').textContent = `${period.daysElapsed}d elapsed · ${daysLeft}d remaining`;
+
+  // Scenarios table
+  const scenarios = [
+    { name: 'Optimistic', cls: 'safe',   rate: burn7 * 0.5,  desc: 'Half of recent avg' },
+    { name: 'Current pace', cls: status,  rate: burn7,         desc: '7-day average' },
+    { name: 'Elevated',   cls: 'warn',   rate: burn14,        desc: '14-day average' },
+    { name: 'Heavy use',  cls: 'danger', rate: burn7 * 1.5,   desc: '1.5× recent avg' },
+  ];
+  document.getElementById('b-scenarios').innerHTML = scenarios.map(s => {
+    const proj = spent + s.rate * daysLeft;
+    const diff = proj - budget;
+    const ovr  = diff > 0;
+    const cls  = proj > budget ? 'danger' : proj > budget * 0.9 ? 'warn' : 'safe';
+    const colors = { safe: 'var(--green)', warn: 'var(--yellow)', danger: 'var(--red)' };
+    return `
+    <div class="scenario-row">
+      <div><div class="scenario-name">${s.name}</div><div class="scenario-desc">${s.desc}</div></div>
+      <div style="color:var(--text2)">${fmt(s.rate)}/day</div>
+      <div style="color:${colors[cls]};font-weight:600">${fmt(proj)}</div>
+      <div class="scenario-pct" style="color:${ovr ? 'var(--red)' : 'var(--green)'}">
+        ${ovr ? '+' : ''}${fmt(diff)} (${ovr ? 'over' : 'under'})
+      </div>
+    </div>`;
+  }).join('');
+
+  // Advice tip
+  const tipEl = document.getElementById('b-tip');
+  if (status === 'danger') {
+    tipEl.innerHTML = `<strong>You've exceeded your budget.</strong> You spent ${fmt(spent)} against a ${fmt(budget)} budget this period. Consider switching to lighter models (Haiku) for routine tasks, or reducing context window usage.`;
+  } else if (status === 'warn') {
+    const daysUntilOut = burn7 > 0 ? remaining / burn7 : Infinity;
+    tipEl.innerHTML = `<strong>Heads up:</strong> At your current 7-day burn rate of <strong>${fmt(burn7)}/day</strong>, you're projected to spend <strong>${fmt(projMid)}</strong> this period — over your <strong>${fmt(budget)}</strong> budget. Your safe daily allowance is <strong>${fmt(safeDaily)}/day</strong>. Try using Sonnet or Haiku instead of Opus on less critical tasks.`;
+  } else if (burn7 < safeDaily * 0.5) {
+    tipEl.innerHTML = `<strong>Well within budget.</strong> Your 7-day burn rate is <strong>${fmt(burn7)}/day</strong>, well below your safe daily allowance of <strong>${fmt(safeDaily)}/day</strong>. You have plenty of headroom — projected to spend <strong>${fmt(projMid)}</strong> of your <strong>${fmt(budget)}</strong> budget.`;
+  } else {
+    tipEl.innerHTML = `<strong>On track.</strong> You've spent <strong>${fmt(spent)}</strong> with ${daysLeft} days left. At <strong>${fmt(burn7)}/day</strong>, projected total is <strong>${fmt(projMid)}</strong>. Safe daily limit is <strong>${fmt(safeDaily)}/day</strong>.`;
+  }
+
+  // Chart
+  renderBudgetChart(period, periodDays, budget, burn7, safeDaily);
+}
+
+let budgetChartInst = null;
+function renderBudgetChart(period, periodDays, budget, burn7, safeDaily) {
+  // Build full date range for the period
+  const allDates = [];
+  const startD = new Date(period.start);
+  const endD   = new Date(period.end);
+  for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+    allDates.push(d.toISOString().slice(0,10));
+  }
+
+  const todayStr  = today();
+  const spendMap  = Object.fromEntries(periodDays.map(d => [d.date, d.totalCost]));
+
+  // Actual cumulative
+  let cumActual = 0;
+  const actualData = allDates.map(date => {
+    if (date <= todayStr) {
+      cumActual += spendMap[date] || 0;
+      return +cumActual.toFixed(4);
+    }
+    return null;
+  });
+
+  // Projected cumulative (continues from today with burn7)
+  const projData = allDates.map((date, i) => {
+    if (date < todayStr) return null;
+    const daysFromToday = Math.round((new Date(date) - new Date(todayStr)) / 86400000);
+    return +(cumActual + burn7 * daysFromToday).toFixed(4);
+  });
+
+  // Safe pace (linear from 0 to budget over period)
+  const safeData = allDates.map((_, i) => +((i + 1) * safeDaily).toFixed(4));
+
+  // Budget ceiling (flat line)
+  const budgetLine = allDates.map(() => budget);
+
+  if (budgetChartInst) budgetChartInst.destroy();
+  budgetChartInst = new Chart(document.getElementById('budget-chart'), {
+    type: 'bar',
+    data: {
+      labels: allDates,
+      datasets: [
+        {
+          label: 'Daily spend',
+          type: 'bar',
+          data: allDates.map(d => d <= todayStr ? (spendMap[d] || 0) : null),
+          backgroundColor: allDates.map(d => {
+            const v = spendMap[d] || 0;
+            return v > safeDaily * 1.3 ? 'rgba(248,113,113,0.6)' : v > safeDaily ? 'rgba(245,166,35,0.6)' : 'rgba(62,207,142,0.5)';
+          }),
+          borderWidth: 0, borderRadius: 3,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Cumulative (actual)',
+          type: 'line',
+          data: actualData,
+          borderColor: '#60a5fa', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 0, tension: 0.3,
+          yAxisID: 'y2',
+        },
+        {
+          label: 'Projected',
+          type: 'line',
+          data: projData,
+          borderColor: '#f87171', backgroundColor: 'transparent',
+          borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0.3,
+          segment: { borderDash: [5, 4] },
+          yAxisID: 'y2',
+        },
+        {
+          label: 'Budget limit',
+          type: 'line',
+          data: budgetLine,
+          borderColor: 'rgba(248,113,113,0.5)', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0,
+          yAxisID: 'y2',
+        },
+        {
+          label: 'Safe pace',
+          type: 'line',
+          data: safeData,
+          borderColor: 'rgba(62,207,142,0.4)', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0,
+          yAxisID: 'y2',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#9399b8', font: { size: 11 }, padding: 14, boxWidth: 10 },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.raw === null) return null;
+              return `  ${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#5a6080', maxTicksLimit: 10, font: { size: 10 } },
+          grid: { color: '#181c2e' }
+        },
+        y: {
+          position: 'left',
+          ticks: { color: '#5a6080', callback: v => '$'+v, font: { size: 10 } },
+          grid: { color: '#181c2e' },
+          title: { display: true, text: 'Daily', color: '#5a6080', font: { size: 10 } }
+        },
+        y2: {
+          position: 'right',
+          ticks: { color: '#5a6080', callback: v => '$'+v, font: { size: 10 } },
+          grid: { display: false },
+          title: { display: true, text: 'Cumulative', color: '#5a6080', font: { size: 10 } }
+        },
+      }
+    }
+  });
+}
+
+// ── Load all ──
+async function loadAll() {
+  document.getElementById('summary-cards').innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+  try {
+    const [daily, allDaily, sessions, monthly] = await Promise.all([
+      fetchJSON('daily'),
+      fetch('/api/daily').then(r => r.json()),   // unfiltered — always for budget
+      fetchJSON('session'),
+      fetchJSON('monthly'),
+    ]);
+    dailyData    = daily.daily      || [];
+    allDailyData = allDaily.daily   || [];
+    sessionData  = sessions.sessions || [];
+    monthlyData  = monthly.monthly   || [];
+
+    renderCards(dailyData, sessionData);
+    renderDailyChart(dailyData);
+    renderModelChart(dailyData);
+    renderTopDays(dailyData);
+    renderDailyTable(dailyData);
+    renderSessions(sessionData);
+    renderMonthly(monthlyData);
+    renderBudget();
+  } catch (e) {
+    showError('Could not load data: ' + e.message);
+    console.error(e);
+  }
+}
+
+loadBudgetSettings();
+loadAll();
+</script>
+</body>
+</html>
