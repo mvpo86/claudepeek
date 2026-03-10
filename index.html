@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Usage</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1132,12 +1132,16 @@ function modelBorderColor(name, idx = 0) {
   return f ? MODEL_PALETTE[f].border : FALLBACK_COLORS[idx % FALLBACK_COLORS.length].replace('0.7','1');
 }
 function modelBadge(name) {
-  const short = name.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'');
-  const cls   = modelFamily(name) || '';
+  const short = escapeHTML(name.replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,''));
+  const cls   = escapeHTML(modelFamily(name) || '');
   return `<span class="badge ${cls}">${short}</span>`;
 }
 
 // ── Formatting ──
+function escapeHTML(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function fmt(n)  { return '~$' + n.toFixed(2); }
 function fmtN(n) {
   if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
@@ -1207,9 +1211,9 @@ function updatePeriodPill() {
   if (!s && !u) {
     pill.innerHTML = 'Showing <strong>all time</strong>';
   } else if (s === u && s) {
-    pill.innerHTML = `Showing <strong>${s}</strong>`;
+    pill.innerHTML = `Showing <strong>${escapeHTML(s)}</strong>`;
   } else {
-    pill.innerHTML = `<strong>${s || '…'}</strong> → <strong>${u || '…'}</strong>`;
+    pill.innerHTML = `<strong>${escapeHTML(s) || '…'}</strong> → <strong>${escapeHTML(u) || '…'}</strong>`;
   }
 }
 
@@ -1284,11 +1288,11 @@ function renderCards(daily, sessions) {
     <div class="card" style="--card-color:var(--red)">
       <div class="card-label">Highest single day</div>
       <div class="card-value">${topDay ? fmt(topDay.totalCost) : '—'}</div>
-      <div class="card-sub">${topDay ? topDay.date : 'no data'}</div>
+      <div class="card-sub">${topDay ? escapeHTML(topDay.date) : 'no data'}</div>
     </div>
     <div class="card" style="--card-color:var(--accent)">
       <div class="card-label">Top model by spend</div>
-      <div class="card-value" style="font-size:16px;padding-top:4px">${topModel ? topModel[0].replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'') : '—'}</div>
+      <div class="card-value" style="font-size:16px;padding-top:4px">${topModel ? escapeHTML(topModel[0].replace('claude-','').replace(/-\d{8}$/,'').replace(/-20\d{6}$/,'')) : '—'}</div>
       <div class="card-sub">${topModel ? fmt(topModel[1]) + ' of total' : ''}</div>
     </div>
     <div class="card" style="--card-color:var(--blue)">
@@ -1391,7 +1395,7 @@ function renderTopDays(daily) {
   document.getElementById('top-days-body').innerHTML = top.length ? top.map((d, i) => `
     <tr${d.date === todayStr ? ' class="today-row"' : ''}>
       <td style="color:var(--text3);width:32px">${i+1}</td>
-      <td>${d.date}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
+      <td>${escapeHTML(d.date)}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
       <td>
         <div class="cost-cell">
           <span class="cost-amount" style="color:var(--green)">${fmt(d.totalCost)}</span>
@@ -1413,7 +1417,7 @@ function renderDailyTable(daily) {
   document.getElementById('daily-total-meta').textContent = `${sorted.length} days · Total: ${fmt(total)}`;
   document.getElementById('daily-body').innerHTML = sorted.length ? sorted.map(d => `
     <tr${d.date === todayStr ? ' class="today-row"' : ''}>
-      <td>${d.date}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
+      <td>${escapeHTML(d.date)}${d.date === todayStr ? ' <span style="font-size:10px;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:10px">today</span>' : ''}</td>
       <td><span style="color:var(--green);font-weight:600">${fmt(d.totalCost)}</span></td>
       <td style="color:var(--text2)">${fmtN(d.inputTokens)}</td>
       <td style="color:var(--text2)">${fmtN(d.outputTokens)}</td>
@@ -1489,8 +1493,8 @@ function filterSessions() {
     <tr class="session-group-header" onclick="${multi ? `toggleGroup('${groupId}')` : ''}" data-group-id="${groupId}" style="${multi ? '' : 'cursor:default'}">
       <td>
         <span class="group-toggle${multi ? '' : ' open'}">${multi ? '▶' : ''}</span>
-        <span class="session-name">${name}${multi ? `<span class="session-count-badge">${g.sessions.length}</span>` : ''}</span>
-        <div class="session-path" style="margin-left:14px">${fullPath}</div>
+        <span class="session-name">${escapeHTML(name)}${multi ? `<span class="session-count-badge">${g.sessions.length}</span>` : ''}</span>
+        <div class="session-path" style="margin-left:14px">${escapeHTML(fullPath)}</div>
       </td>
       <td>
         <div class="cost-cell">
@@ -1499,7 +1503,7 @@ function filterSessions() {
         </div>
       </td>
       <td style="color:var(--text2)">${fmtN(g.totalTokens)}</td>
-      <td style="color:var(--text2)">${g.lastActivity || '—'}</td>
+      <td style="color:var(--text2)">${escapeHTML(g.lastActivity || '—')}</td>
       <td>${g.modelsUsed.map(m => modelBadge(m)).join(' ')}</td>
     </tr>`;
 
@@ -1512,7 +1516,7 @@ function filterSessions() {
       <tr class="session-child-row" data-group="${groupId}" style="display:none">
         <td>
           <div class="session-name">${uuid ? uuid.slice(0,8) : 'session'}</div>
-          <div class="session-path">${s.lastActivity || '—'}</div>
+          <div class="session-path">${escapeHTML(s.lastActivity || '—')}</div>
         </td>
         <td>
           <span class="cost-amount" style="color:var(--green)">${fmt(s.totalCost)}</span>
@@ -1538,7 +1542,7 @@ function renderMonthly(monthly) {
     return `
     <div class="monthly-card">
       <h4>
-        ${m.month}
+        ${escapeHTML(m.month)}
         <span class="monthly-cost">${fmt(m.totalCost)}</span>
       </h4>
       <div class="monthly-row"><span class="key">Top model</span><span class="val">${modelBadge(top?.modelName||'')}</span></div>

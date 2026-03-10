@@ -7,12 +7,19 @@ const { execFile, exec } = require('child_process');
 const args = process.argv.slice(2);
 const PORT = (() => {
   const p = args.indexOf('--port');
-  return p !== -1 ? parseInt(args[p + 1]) : 3737;
+  if (p === -1) return 3737;
+  const n = parseInt(args[p + 1], 10);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+    console.error('Error: --port must be an integer between 1 and 65535');
+    process.exit(1);
+  }
+  return n;
 })();
 const NO_OPEN = args.includes('--no-open');
 
 function runCcusage(cmdArgs, cb) {
-  execFile('npx', ['ccusage', ...cmdArgs, '--json'], { shell: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+  const safeArgs = cmdArgs.map(a => a.replace(/[^a-zA-Z0-9:_\-\.]/g, ''));
+  exec(`npx ccusage ${safeArgs.join(' ')} --json`, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
     if (err) return cb(err, null);
     try { cb(null, JSON.parse(stdout)); }
     catch (e) { cb(e, null); }
@@ -21,8 +28,9 @@ function runCcusage(cmdArgs, cb) {
 
 function buildArgs(cmd, query) {
   const a = [cmd];
-  if (query.since) a.push('--since', query.since);
-  if (query.until) a.push('--until', query.until);
+  const dateRe = /^\d{8}$/;
+  if (query.since && dateRe.test(query.since)) a.push('--since', query.since);
+  if (query.until && dateRe.test(query.until)) a.push('--until', query.until);
   return a;
 }
 
@@ -49,7 +57,11 @@ const server = http.createServer((req, res) => {
 
   if (url === '/') {
     const html = fs.readFileSync(path.join(__dirname, 'index.html'));
-    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.writeHead(200, {
+      'Content-Type': 'text/html',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+    });
     return res.end(html);
   }
 
