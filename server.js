@@ -12,7 +12,7 @@ const PORT = (() => {
 const NO_OPEN = args.includes('--no-open');
 
 function runCcusage(cmdArgs, cb) {
-  execFile('npx', ['ccusage', ...cmdArgs, '--json'], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+  execFile('npx', ['ccusage', ...cmdArgs, '--json'], { shell: true, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
     if (err) return cb(err, null);
     try { cb(null, JSON.parse(stdout)); }
     catch (e) { cb(e, null); }
