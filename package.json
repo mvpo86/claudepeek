@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "author": "Martin Penabad",
-  "homepage": "https://github.com/martinpenabad/claudepeek",
+  "homepage": "https://github.com/mvpo86/claudepeek",
   "bin": {
     "claudepeek": "server.js"
   },
