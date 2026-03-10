@@ -474,6 +474,17 @@ tbody tr:hover td { background: var(--surface2); }
 .session-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .session-path { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: 'SF Mono', 'Fira Code', monospace; }
 
+/* ── Session groups ── */
+.session-group-header { cursor: pointer; background: var(--surface2); }
+.session-group-header:hover { background: #1e2235; }
+.session-group-header td:first-child { padding-left: 14px; }
+.group-toggle { display: inline-block; width: 14px; font-size: 10px; color: var(--text3); transition: transform 0.15s; }
+.group-toggle.open { transform: rotate(90deg); }
+.session-count-badge { font-size: 10px; color: var(--text3); background: var(--surface3); border-radius: 10px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.session-child-row td:first-child { padding-left: 28px; }
+.session-child-row .session-name { font-size: 12px; color: var(--text2); font-weight: 400; }
+.session-child-row .session-path { font-size: 10px; }
+
 /* ── Monthly grid ── */
 .monthly-grid {
   display: grid;
@@ -876,32 +887,30 @@ tbody tr:hover td { background: var(--surface2); }
         <span class="section-meta" id="sessions-meta"></span>
       </div>
 
-      <div class="notice warn">
-        <span class="notice-icon">⚠</span>
+      <div class="notice info">
+        <span class="notice-icon">ℹ</span>
         <span class="notice-text">
-          <strong>These are all-time lifetime totals per project/session</strong> — not filtered by the date range above.
-          Each session accumulates cost across every conversation you've ever had in that folder.
-          To see what you spent in a specific period, use the <strong>Daily</strong> or <strong>Monthly</strong> tabs.
+          Each row is a project/session workspace. <strong>Costs shown are all-time totals</strong> — the date filter only controls which sessions appear based on last activity date.
         </span>
       </div>
 
       <div class="search-row">
-        <input type="text" class="search-input" id="session-search" placeholder="Search by project name…" oninput="filterSessions()">
+        <input type="text" class="search-input" id="session-search" placeholder="Search by project or session ID…" oninput="filterSessions()">
       </div>
 
       <div class="table-box">
         <div class="table-header">
-          <span class="table-title">Projects (all time)</span>
+          <span class="table-title">Sessions</span>
           <span class="table-meta" id="session-count-meta"></span>
         </div>
         <div class="table-wrapper">
           <table>
             <thead><tr>
-              <th>Project</th>
-              <th>All-time spend</th>
+              <th>Project / Session</th>
+              <th>Spend</th>
               <th>Total tokens</th>
               <th>Last active</th>
-              <th>Models ever used</th>
+              <th>Models used</th>
             </tr></thead>
             <tbody id="sessions-body"></tbody>
           </table>
@@ -1058,7 +1067,7 @@ tbody tr:hover td { background: var(--surface2); }
         <div class="about-card">
           <div class="about-card-icon">📅</div>
           <h3>Sessions vs Daily</h3>
-          <p><strong>Sessions</strong> show the all-time accumulated cost for each project folder, regardless of any date filter you set. A session is one working directory.</p>
+          <p><strong>Sessions</strong> show all-time accumulated cost per project/session workspace. The date filter controls which sessions appear based on last activity, but costs always reflect the full history of that session.</p>
           <p><strong>Daily/Monthly</strong> views show what happened within a specific time window — use these to understand your recent spend rate.</p>
         </div>
         <div class="about-card">
@@ -1285,7 +1294,7 @@ function renderCards(daily, sessions) {
     <div class="card" style="--card-color:var(--blue)">
       <div class="card-label">Total tokens</div>
       <div class="card-value">${fmtN(totalTokens)}</div>
-      <div class="card-sub">${sessions.length} project${sessions.length !== 1 ? 's' : ''} (all time)</div>
+      <div class="card-sub">${sessions.length} session${sessions.length !== 1 ? 's' : ''}</div>
     </div>
   `;
 }
@@ -1421,36 +1430,101 @@ function renderSessions(sessions) {
   filterSessions();
 }
 
+function getSessionUUID(projectPath) {
+  if (!projectPath || projectPath === 'Unknown Project') return null;
+  const last = projectPath.split('/').pop();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(last) ? last : null;
+}
+
+function toggleGroup(groupId) {
+  const rows = document.querySelectorAll(`[data-group="${groupId}"]`);
+  const toggle = document.querySelector(`[data-group-id="${groupId}"] .group-toggle`);
+  const isOpen = toggle && toggle.classList.contains('open');
+  rows.forEach(r => { r.style.display = isOpen ? 'none' : ''; });
+  if (toggle) toggle.classList.toggle('open', !isOpen);
+}
+
 function filterSessions() {
   const q = document.getElementById('session-search').value.toLowerCase();
   const filtered = allSessions.filter(s => {
     if (!q) return true;
     const { name, fullPath } = parseSessionPath(s.sessionId);
-    return name.toLowerCase().includes(q) || fullPath.toLowerCase().includes(q) || s.sessionId.toLowerCase().includes(q);
+    const uuid = getSessionUUID(s.projectPath) || '';
+    return name.toLowerCase().includes(q) || fullPath.toLowerCase().includes(q) || s.sessionId.toLowerCase().includes(q) || uuid.includes(q);
   });
+
+  // Group by sessionId (project)
+  const groupMap = new Map();
+  filtered.forEach(s => {
+    if (!groupMap.has(s.sessionId)) groupMap.set(s.sessionId, []);
+    groupMap.get(s.sessionId).push(s);
+  });
+  // Sort groups by total cost desc
+  const groups = [...groupMap.entries()]
+    .map(([id, sessions]) => ({
+      id,
+      sessions: [...sessions].sort((a,b) => (b.lastActivity||'').localeCompare(a.lastActivity||'')),
+      totalCost: sessions.reduce((s,x) => s+x.totalCost, 0),
+      totalTokens: sessions.reduce((s,x) => s+x.totalTokens, 0),
+      lastActivity: sessions.map(s=>s.lastActivity||'').sort().pop(),
+      modelsUsed: [...new Set(sessions.flatMap(s => s.modelsUsed||[]))],
+    }))
+    .sort((a,b) => b.totalCost - a.totalCost);
+
   const total = filtered.reduce((s,x) => s+x.totalCost, 0);
-  document.getElementById('sessions-meta').textContent = 'All-time per project';
-  document.getElementById('session-count-meta').textContent = `${filtered.length} of ${allSessions.length} projects · Total: ${fmt(total)}`;
-  const maxCost = allSessions[0]?.totalCost || 1;
-  document.getElementById('sessions-body').innerHTML = filtered.length ? filtered.map(s => {
-    const { name, fullPath } = parseSessionPath(s.sessionId);
-    return `
-    <tr>
+  document.getElementById('sessions-meta').textContent = 'All-time cost · active in ' + periodLabel();
+  document.getElementById('session-count-meta').textContent = `${filtered.length} of ${allSessions.length} sessions · ${groups.length} project${groups.length !== 1 ? 's' : ''} · Total: ${fmt(total)}`;
+
+  const maxCost = groups[0]?.totalCost || 1;
+  if (!groups.length) {
+    document.getElementById('sessions-body').innerHTML = `<tr><td colspan="5" class="empty">No sessions match your search</td></tr>`;
+    return;
+  }
+
+  document.getElementById('sessions-body').innerHTML = groups.map(g => {
+    const { name, fullPath } = parseSessionPath(g.id);
+    const multi = g.sessions.length > 1;
+    const groupId = 'grp-' + g.id.replace(/[^a-z0-9]/gi, '_');
+    const header = `
+    <tr class="session-group-header" onclick="${multi ? `toggleGroup('${groupId}')` : ''}" data-group-id="${groupId}" style="${multi ? '' : 'cursor:default'}">
       <td>
-        <div class="session-name">${name}</div>
-        <div class="session-path">${fullPath}</div>
+        <span class="group-toggle${multi ? '' : ' open'}">${multi ? '▶' : ''}</span>
+        <span class="session-name">${name}${multi ? `<span class="session-count-badge">${g.sessions.length}</span>` : ''}</span>
+        <div class="session-path" style="margin-left:14px">${fullPath}</div>
       </td>
       <td>
         <div class="cost-cell">
-          <span class="cost-amount" style="color:var(--green)">${fmt(s.totalCost)}</span>
-          <div class="bar-track"><div class="bar-fill" style="width:${(s.totalCost/maxCost*100).toFixed(1)}%"></div></div>
+          <span class="cost-amount" style="color:var(--green)">${fmt(g.totalCost)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(g.totalCost/maxCost*100).toFixed(1)}%"></div></div>
         </div>
       </td>
-      <td style="color:var(--text2)">${fmtN(s.totalTokens)}</td>
-      <td style="color:var(--text2)">${s.lastActivity || '—'}</td>
-      <td>${(s.modelsUsed||[]).map(m => modelBadge(m)).join(' ')}</td>
-    </tr>
-  `}).join('') : `<tr><td colspan="5" class="empty">No sessions match your search</td></tr>`;
+      <td style="color:var(--text2)">${fmtN(g.totalTokens)}</td>
+      <td style="color:var(--text2)">${g.lastActivity || '—'}</td>
+      <td>${g.modelsUsed.map(m => modelBadge(m)).join(' ')}</td>
+    </tr>`;
+
+    if (!multi) return header;
+
+    const maxChild = g.sessions[0]?.totalCost || 1;
+    const children = g.sessions.map(s => {
+      const uuid = getSessionUUID(s.projectPath);
+      return `
+      <tr class="session-child-row" data-group="${groupId}" style="display:none">
+        <td>
+          <div class="session-name">${uuid ? uuid.slice(0,8) : 'session'}</div>
+          <div class="session-path">${s.lastActivity || '—'}</div>
+        </td>
+        <td>
+          <span class="cost-amount" style="color:var(--green)">${fmt(s.totalCost)}</span>
+        </td>
+        <td style="color:var(--text2)">${fmtN(s.totalTokens)}</td>
+        <td style="color:var(--text2)">${s.lastActivity || '—'}</td>
+        <td>${(s.modelsUsed||[]).map(m => modelBadge(m)).join(' ')}</td>
+      </tr>`;
+    }).join('');
+
+    return header + children;
+  }).join('');
 }
 
 // ── Monthly ──
