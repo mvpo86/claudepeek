@@ -1840,6 +1840,15 @@ async function loadAll() {
 
 loadBudgetSettings();
 loadAll();
+
+// ── Resize all charts when window size changes ──
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    Chart.instances && Object.values(Chart.instances).forEach(c => c.resize());
+  }, 100);
+});
 </script>
 </body>
 </html>
